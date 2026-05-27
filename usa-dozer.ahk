@@ -1,7 +1,7 @@
 ﻿#Requires AutoHotkey >=2.0
 #SingleInstance Off ; إيقاف الميزة الافتراضية لتجنب رسالة الخطأ المزعجة عند إعادة التشغيل
 
-; 1. طلب صلاحيات المسؤول أولاً
+; 1. طلب صلاحيات المسؤول أولاً لضمان عمل السكربت داخل اللعبة
 full_command_line := DllCall("GetCommandLine", "str")
 if not (A_IsAdmin or RegExMatch(full_command_line, " /restart(?!\S)")) {
     try {
@@ -13,14 +13,14 @@ if not (A_IsAdmin or RegExMatch(full_command_line, " /restart(?!\S)")) {
     ExitApp
 }
 
-; 2. بعد الحصول على الصلاحيات، يتم البحث عن النسخة القديمة وإغلاقها بقوة وصمت
+; 2. بعد الحصول على الصلاحيات، يتم البحث عن النسخة القديمة وإغلاقها صامتاً لمنع التكرار
 DetectHiddenWindows True
 old_instances := WinGetList(A_ScriptFullPath " ahk_class AutoHotkey")
 for hwnd in old_instances {
-    if (hwnd != A_ScriptHwnd) { ; تجنب إغلاق النسخة الجديدة الحالية
+    if (hwnd != A_ScriptHwnd) {
         try {
             pid := WinGetPID(hwnd)
-            ProcessClose(pid) ; إنهاء عملية النسخة القديمة فوراً
+            ProcessClose(pid)
         }
     }
 }
@@ -29,26 +29,15 @@ for hwnd in old_instances {
 CoordMode "Pixel", "Screen"
 CoordMode "Mouse", "Screen"
 
-; =======================================================
-; مفاتيح التحكم بالبرنامج (تعمل في أي وقت)
-; =======================================================
-
-; الضغط على زر F12 يغلق السكربت نهائياً
-F12::ExitApp
-
-; الضغط على زر F11 يعطل الاختصارات مؤقتاً
-F11:: {
-    Suspend ; إيقاف مؤقت للاختصارات
-    if A_IsSuspended {
-        ToolTip("تم إيقاف السكربت مؤقتاً (Suspended)")
-    } else {
-        ToolTip("تم إعادة تفعيل السكربت (Active)")
-    }
-    SetTimer () => ToolTip(), -2000 ; إخفاء التنبيه بعد ثانيتين
-}
+; ==============================================================================
+; آلية الخمول الدائم الصامت (Dormant State):
+; السكربت يظل يعمل في الخلفية باستهلاك 0% من المعالج ومساحة رام لا تذكر (~2MB).
+; بفضل تعليمة #HotIf بالأسفل، بمجرد إغلاق اللعبة أو الخروج منها، يدخل السكربت 
+; تلقائياً في حالة نوم عميق ولا يتفاعل مع أي زر حتى تفتح اللعبة مجدداً.
+; ==============================================================================
 
 ; =======================================================
-; الاختصارات الخاصة باللعبة
+; الاختصارات الخاصة باللعبة (تنشط فقط داخل اللعبة)
 ; =======================================================
 #HotIf WinActive("ahk_exe game.dat") or WinActive("ahk_exe generals.exe") or WinActive("Command & Conquer")
 
@@ -61,7 +50,7 @@ $d:: {
     }
 }
 
-; اختصار زر s: يرسل y (لبناء Strategy Center) إذا كان البلدوزر محدداً، وإلا يرسل s كالمعتاد
+; اختصار زر v: يرسل y (لبناء Strategy Center) إذا كان البلدوزر محدداً، وإلا يرسل v كالمعتاد
 $v:: {
     if IsDozerSelected() {
         Send("y")
@@ -70,6 +59,7 @@ $v:: {
     }
 }
 
+; اختصار زر g: يرسل p (لبناء Power Plant) إذا كان البلدوزر محدداً، وإلا يرسل g كالمعتاد
 $g:: {
     if IsDozerSelected() {
         Send("p")
@@ -78,28 +68,34 @@ $g:: {
     }
 }
 
-
 #HotIf
 
-; ==========================================
-; دالة مساعدة مشتركة لفحص وجود صورة البلدوزر
-; ==========================================
+; مفاتيح التحكم اليدوية الطارئة (تعمل في أي وقت)
+F12::ExitApp
+F11:: {
+    Suspend
+    if A_IsSuspended {
+        ToolTip("تم إيقاف السكربت مؤقتاً")
+    } else {
+        ToolTip("تم إعادة تفعيل السكربت")
+    }
+    SetTimer () => ToolTip(), -2000
+}
+
+; دالة فحص وجود صورة البلدوزر
 IsDozerSelected() {
     static image_path := "*50 " A_ScriptDir "\dozer.png"
     
-    ; التحقق من وجود ملف الصورة وتنبيه اللاعب دون إيقاف اللعبة
     if !FileExist(A_ScriptDir "\dozer.png") {
         ToolTip("خطأ: ملف dozer.png غير موجود بجانب السكربت!")
         SetTimer () => ToolTip(), -3000
         return false
     }
 
-    ; تحديد إحداثيات الزاوية السفلية اليمنى ديناميكياً
     x1 := Integer(A_ScreenWidth * 0.60)
     y1 := Integer(A_ScreenHeight * 0.70)
     x2 := A_ScreenWidth
     y2 := A_ScreenHeight
 
-    ; إرجاع نتيجة البحث (صح أو خطأ)
     return ImageSearch(&FoundX, &FoundY, x1, y1, x2, y2, image_path)
 }
