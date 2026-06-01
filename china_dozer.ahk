@@ -48,7 +48,7 @@ CoordMode "Mouse", "Screen"
 ; اختصار زر d: يرسل i إذا كان البلدوزر الصيني محدداً، وإلا يرسل d كالمعتاد
 $d:: {
     if IsChinaDozerSelected() {
-        Send("i")
+        Send("k")
     } else {
         Send("d")
     }
