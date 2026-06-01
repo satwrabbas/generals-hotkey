@@ -57,7 +57,7 @@ $d:: {
 ; اختصار زر v: يرسل y إذا كان البلدوزر الصيني محدداً، وإلا يرسل v كالمعتاد
 $v:: {
     if IsChinaDozerSelected() {
-        Send("y")
+        Send("p")
     } else {
         Send("v")
     }
